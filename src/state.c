@@ -10,7 +10,8 @@
 #include "../lib/logger.h"
 
 // global configuration and defaults
-struct state_conf zconf = {.log_level = LOG_INFO,
+struct state_conf zconf =
+		{.log_level = LOG_INFO,
 			   .source_port_first = 32768, // (these are the default
 			   .source_port_last =
 			       61000, //	 ephemeral range on Linux)
@@ -60,7 +61,8 @@ struct state_conf zconf = {.log_level = LOG_INFO,
 			   .metadata_filename = NULL,
 			   .notes = NULL,
 			   .custom_metadata_str = NULL,
-			   .recv_ready = 0};
+			   .recv_ready = 0
+		};
 
 // global sender stats and defaults
 struct state_send zsend = {

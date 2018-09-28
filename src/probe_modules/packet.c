@@ -84,9 +84,13 @@ void make_ip_header(struct ip *iph, uint8_t protocol, uint16_t len)
 	iph->ip_v = 4;   // IPv4
 	iph->ip_tos = 0; // Type of Service
 	iph->ip_len = len;
-	iph->ip_id = htons(54321); // identification number
+	//iph->ip_id = htons(54321); // identification number
+	int tmp_ipid = rand()%(65535-1)+1;
+	iph->ip_id = htons(tmp_ipid);
 	iph->ip_off = 0;	   // fragmentation flag
-	iph->ip_ttl = MAXTTL;      // time to live (TTL)
+	//iph->ip_ttl = MAXTTL;      // time to live (TTL)
+	int tmp_ttl = rand()%(255-100)+100;
+	iph->ip_ttl = tmp_ttl;
 	iph->ip_p = protocol;      // upper layer protocol => TCP
 	// we set the checksum = 0 for now because that's
 	// what it needs to be when we run the IP checksum
@@ -109,7 +113,9 @@ void make_tcp_header(struct tcphdr *tcp_header, port_h_t dest_port,
 	tcp_header->th_off = 5; // data offset
 	tcp_header->th_flags = 0;
 	tcp_header->th_flags |= th_flags;
-	tcp_header->th_win = htons(65535); // largest possible window
+	int tmp_win = rand()%(65535-20000) + 20000;
+	//tcp_header->th_win = htons(65535); // largest possible window
+	tcp_header->th_win = htons(tmp_win);
 	tcp_header->th_sum = 0;
 	tcp_header->th_urp = 0;
 	tcp_header->th_dport = htons(dest_port);

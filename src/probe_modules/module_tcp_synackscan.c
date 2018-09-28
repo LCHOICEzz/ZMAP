@@ -111,7 +111,8 @@ static int synackscan_validate_packet(const struct ip *ip_hdr, uint32_t len,
 		    htonl(tcp->th_seq) != (htonl(validation[2]) + 1)) {
 			return 0;
 		}
-	} else {
+	}
+	else {
 		// For non RST packets, we must have resp(ack) == sent(seq) + 1
 		if (htonl(tcp->th_ack) != htonl(validation[0]) + 1) {
 			return 0;
@@ -156,10 +157,13 @@ static fielddef_t fields[] = {
     {.name = "ipid", .type = "int", .desc = "IP Identification"},
     {.name = "classification",
      .type = "string",
-     .desc = "packet classification"},
+     .desc = "packet classification"
+	},
     {.name = "success",
      .type = "bool",
-     .desc = "is response considered success"}};
+     .desc = "is response considered success"
+	}
+};
 
 probe_module_t module_tcp_synackscan = {
     .name = "tcp_synackscan",

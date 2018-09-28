@@ -157,4 +157,5 @@ output_module_t module_json_file = {
 	"probe module does not filter out duplicates or limit to successful fields, \n"
 	"but rather includes all received packets. Fields can be controlled by \n"
 	"setting --output-fields. Filtering out failures and duplicate pakcets can \n"
-	"be achieved by setting an --output-filter."};
+	"be achieved by setting an --output-filter."
+};

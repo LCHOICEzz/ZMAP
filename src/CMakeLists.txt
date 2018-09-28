@@ -38,6 +38,7 @@ set(PROBE_MODULE_SOURCES
     probe_modules/module_upnp.c
     probe_modules/module_dns.c
     probe_modules/module_bacnet.c
+        probe_modules/module_tcp_ackscan.c
 )
 
 set(SOURCES
@@ -135,7 +136,7 @@ if(WITH_PFRING)
     set(SOURCES ${SOURCES} recv-pfring.c)
     set(ZTESTSOURCES ${ZTESTSOURCES} recv-pfring.c)
 else()
-    set(SOURCES ${SOURCES} recv-pcap.c)
+    set(SOURCES ${SOURCES} recv-pcap.c probe_modules/module_tcp_ackscan.c)
     set(ZTESTSOURCES ${ZTESTSOURCES} recv-pcap.c)
 endif()
 

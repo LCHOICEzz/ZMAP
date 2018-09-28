@@ -122,7 +122,8 @@ uint32_t parse_max_hosts(char *max_targets)
 	if (end[0] == '%' && end[1] == '\0') {
 		// treat as percentage
 		v = v * ((unsigned long long int)1 << 32) / 100.;
-	} else if (end[0] != '\0') {
+	}
+	else if (end[0] != '\0') {
 		log_fatal("eargparse", "extra characters after max-targets");
 	}
 	if (v <= 0) {

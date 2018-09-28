@@ -393,7 +393,8 @@ int main(int argc, char *argv[])
 	if (!strcmp(args.output_module_arg, "default")) {
 		log_debug("zmap", "no output module provided. will use csv.");
 		zconf.output_module = get_output_module_by_name("csv");
-	} else {
+	}
+	else {
 		zconf.output_module =
 		    get_output_module_by_name(args.output_module_arg);
 		if (!zconf.output_module) {
@@ -606,10 +607,12 @@ int main(int argc, char *argv[])
 			  "sendto failures occur",
 			  zconf.max_sendto_failures);
 	}
+
 	if (zconf.min_hitrate > 0.0) {
 		log_debug("zmap", "scan will abort if hitrate falls below %f",
 			  zconf.min_hitrate);
 	}
+
 	if (args.metadata_file_arg) {
 		zconf.metadata_filename = args.metadata_file_arg;
 		if (!strcmp(zconf.metadata_filename, "-")) {

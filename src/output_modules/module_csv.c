@@ -30,7 +30,8 @@ int csv_init(struct state_conf *conf, char **fields, int fieldlens)
 	if (conf->output_filename) {
 		if (!strcmp(conf->output_filename, "-")) {
 			file = stdout;
-		} else {
+		}
+		else {
 			if (!(file = fopen(conf->output_filename, "w"))) {
 				log_fatal(
 				    "csv",
@@ -38,7 +39,8 @@ int csv_init(struct state_conf *conf, char **fields, int fieldlens)
 				    conf->output_filename, strerror(errno));
 			}
 		}
-	} else {
+	}
+	else {
 		file = stdout;
 		log_info("csv", "no output file selected, will use stdout");
 	}
@@ -125,4 +127,5 @@ output_module_t module_csv_file = {
 	"probe module does not filter out duplicates or limit to successful fields, "
 	"but rather includes all received packets. Fields can be controlled by "
 	"setting --output-fields. Filtering out failures and duplicate packets can "
-	"be achieved by setting an --output-filter."};
+	"be achieved by setting an --output-filter."
+};
