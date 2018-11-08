@@ -325,6 +325,9 @@ int main(int argc, char *argv[])
 	if (cmdline_parser_ext(argc, argv, &args, params) != 0) {
 		exit(EXIT_SUCCESS);
 	}
+
+
+
 	if (args.config_given || file_exists(args.config_arg)) {
 		params->initialize = 0;
 		params->override = 0;
@@ -337,6 +340,7 @@ int main(int argc, char *argv[])
 
 	// initialize logging. if no log file or log directory are specified
 	// default to using stderr.
+	// rizhi wenjian
 	zconf.log_level = args.verbosity_arg;
 	zconf.log_file = args.log_file_arg;
 	zconf.log_directory = args.log_directory_arg;
@@ -390,6 +394,7 @@ int main(int argc, char *argv[])
 
 	// zmap's default behavior is to provide a simple file of the unique IP
 	// addresses that responded successfully.
+	// default output_module csv
 	if (!strcmp(args.output_module_arg, "default")) {
 		log_debug("zmap", "no output module provided. will use csv.");
 		zconf.output_module = get_output_module_by_name("csv");
@@ -518,6 +523,8 @@ int main(int argc, char *argv[])
 		zconf.raw_output_fields = (char *)"saddr";
 	}
 	// add all fields if wildcard received
+
+
 	if (!strcmp(zconf.raw_output_fields, "*")) {
 		zconf.output_fields_len = zconf.fsconf.defs.len;
 		zconf.output_fields =
@@ -646,6 +653,10 @@ int main(int argc, char *argv[])
 
 	// find if zmap wants any specific cidrs scanned instead
 	// of the entire Internet
+	printf("args.inputs=%s\r\n",*args.inputs);
+	printf("args.inputs_num=%d\r\n",args.inputs_num);
+	printf("args.target_port_arg=%d\r\n",args.target_port_arg);
+
 	zconf.destination_cidrs = args.inputs;
 	zconf.destination_cidrs_len = args.inputs_num;
 	if (zconf.destination_cidrs && zconf.blacklist_filename &&
@@ -659,6 +670,9 @@ int main(int argc, char *argv[])
 		    "editing the default ZMap configuration at /etc/zmap/zmap.conf.");
 	}
 	SET_IF_GIVEN(zconf.whitelist_filename, whitelist_file);
+	printf("zconf.whitelist_filename=%s\r\n",zconf.whitelist_filename);
+
+
 
 	if (zconf.probe_module->port_args) {
 		if (args.source_port_given) {
@@ -690,6 +704,8 @@ int main(int argc, char *argv[])
 				zconf.source_port_last = port;
 			}
 		}
+
+
 		if (!args.target_port_given) {
 			log_fatal(
 			    "zmap",
@@ -743,6 +759,7 @@ int main(int argc, char *argv[])
 		}
 		zconf.seed_provided = 0;
 	}
+
 	zconf.aes = aesrand_init_from_seed(zconf.seed);
 
 	// Set up sharding

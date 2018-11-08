@@ -20,6 +20,9 @@
 #include "probe_modules.h"
 #include "packet.h"
 
+#define ICMP_SMALLEST_SIZE 5
+#define ICMP_TIMXCEED_UNREACH_HEADER_SIZE 8
+
 probe_module_t module_tcp_synscan;
 static uint32_t num_ports;
 
@@ -90,40 +93,90 @@ static int synscan_validate_packet(const struct ip *ip_hdr, uint32_t len,
 				   __attribute__((unused)) uint32_t *src_ip,
 				   uint32_t *validation)
 {
-	if (ip_hdr->ip_p != IPPROTO_TCP) {
+	/*
+	 * zmap oringnal code filter non tcp response packets
+	 * if (ip_hdr->ip_p != IPPROTO_TCP) {
 		return 0;
 	}
-	if ((4 * ip_hdr->ip_hl + sizeof(struct tcphdr)) > len) {
-		// buffer not large enough to contain expected tcp header
-		return 0;
-	}
-	struct tcphdr *tcp =
-	    (struct tcphdr *)((char *)ip_hdr + 4 * ip_hdr->ip_hl);
-	uint16_t sport = tcp->th_sport;
-	uint16_t dport = tcp->th_dport;
-	// validate source port
-	if (ntohs(sport) != zconf.target_port) {
-		return 0;
-	}
-	// validate destination port
-	if (!check_dst_port(ntohs(dport), num_ports, validation)) {
-		return 0;
-	}
+	 */
 
-	// We treat RST packets different from non RST packets
-	if (tcp->th_flags & TH_RST) {
-		// For RST packets, recv(ack) == sent(seq) + 0 or + 1
-		if (htonl(tcp->th_ack) != htonl(validation[0]) &&
-		    htonl(tcp->th_ack) != htonl(validation[0]) + 1) {
+	//zou: add tcp response packets
+	if(ip_hdr->ip_p == IPPROTO_TCP) {
+		if ((4 * ip_hdr->ip_hl + sizeof(struct tcphdr)) > len) {
+			// buffer not large enough to contain expected tcp header
 			return 0;
 		}
-	} else {
-		// For non RST packets, recv(ack) == sent(seq) + 1
-		if (htonl(tcp->th_ack) != htonl(validation[0]) + 1) {
+		struct tcphdr *tcp =
+				(struct tcphdr *) ((char *) ip_hdr + 4 * ip_hdr->ip_hl);
+		uint16_t sport = tcp->th_sport;
+		uint16_t dport = tcp->th_dport;
+		// validate source port
+		if (ntohs(sport) != zconf.target_port) {
 			return 0;
 		}
+		// validate destination port
+		if (!check_dst_port(ntohs(dport), num_ports, validation)) {
+			return 0;
+		}
+		/*
+		 * // We treat RST packets different from non RST packets
+		if (tcp->th_flags & TH_RST) {
+			// For RST packets, recv(ack) == sent(seq) + 0 or + 1
+			if (htonl(tcp->th_ack) != htonl(validation[0]) &&
+				htonl(tcp->th_ack) != htonl(validation[0]) + 1) {
+				return 0;
+			}
+		} else {
+			// For non RST packets, recv(ack) == sent(seq) + 1
+			if (htonl(tcp->th_ack) != htonl(validation[0]) + 1) {
+				return 0;
+			}
+		}
+		 */
+			//zou:validate tcp acknowledgement number for syn-ack packets
+		if (!(tcp->th_flags & TH_RST)) {
+			if (htonl(tcp->th_ack) != htonl(validation[0]) + 1) {
+				return 0;
+			}
+		}
 	}
+	else if (ip_hdr->ip_p == IPPROTO_ICMP) {
 
+		if (((uint32_t) 4 * ip_hdr->ip_hl + ICMP_SMALLEST_SIZE) > len) {
+			// buffer not large enough to contain expected icmp header
+			return 0;
+		}
+
+		struct icmp *icmp = (struct icmp*) ((char *) ip_hdr + 4*ip_hdr->ip_hl);
+
+		// + 1st 8B of original ICMP frame
+		if ((4*ip_hdr->ip_hl + ICMP_TIMXCEED_UNREACH_HEADER_SIZE +
+			 sizeof(struct ip)) > len) {
+			return 0;
+		}
+
+		struct ip *ip_inner = (struct ip*) ((char *) icmp+8);
+
+		uint32_t inner_src_ip = ip_inner->ip_src.s_addr;
+		uint32_t inner_dst_ip = ip_inner->ip_dst.s_addr;
+
+
+		// This is the packet we sent
+		struct tcphdr *inner_tcp = (struct tcphdr*)((char *) ip_inner + 4*ip_inner->ip_hl);
+		uint16_t inner_sport = inner_tcp->th_sport;
+		uint16_t inner_dport = inner_tcp->th_dport;
+
+		// validate destination port
+		if (!check_dst_port(ntohs(inner_dport), num_ports, validation)) {
+			return 0;
+		}
+
+		// Bano: I am not using validation of seq number as it
+		// uses some icmp_id which has been set by ZMap. However,
+		// ICMP error msgs to tcp syn scan are unsolicited, so
+		// can't verify them other than checking inner dport
+
+	}
 	return 1;
 }
 
@@ -133,28 +186,96 @@ static void synscan_process_packet(const u_char *packet,
 				   __attribute__((unused)) uint32_t *validation)
 {
 	struct ip *ip_hdr = (struct ip *)&packet[sizeof(struct ether_header)];
-	struct tcphdr *tcp =
-	    (struct tcphdr *)((char *)ip_hdr + 4 * ip_hdr->ip_hl);
 
-	fs_add_uint64(fs, "sport", (uint64_t)ntohs(tcp->th_sport));
-	fs_add_uint64(fs, "dport", (uint64_t)ntohs(tcp->th_dport));
-	fs_add_uint64(fs, "seqnum", (uint64_t)ntohl(tcp->th_seq));
-	fs_add_uint64(fs, "acknum", (uint64_t)ntohl(tcp->th_ack));
-	fs_add_uint64(fs, "window", (uint64_t)ntohs(tcp->th_win));
+	if(ip_hdr->ip_p == IPPROTO_TCP){
+		struct tcphdr *tcp =
+				(struct tcphdr *)((char *)ip_hdr + 4 * ip_hdr->ip_hl);
 
-	if (tcp->th_flags & TH_RST) { // RST packet
-		fs_add_string(fs, "classification", (char *)"rst", 0);
-		fs_add_bool(fs, "success", 0);
-	} else { // SYNACK packet
+		fs_add_uint64(fs, "sport", (uint64_t)ntohs(tcp->th_sport));
+		fs_add_uint64(fs, "dport", (uint64_t)ntohs(tcp->th_dport));
+		fs_add_uint64(fs, "seqnum", (uint64_t)ntohl(tcp->th_seq));
+		fs_add_uint64(fs, "acknum", (uint64_t)ntohl(tcp->th_ack));
+		fs_add_uint64(fs, "window", (uint64_t)ntohs(tcp->th_win));
+
+		//zou: add ICMP specific fields, adding null for TCP
+		fs_add_null(fs, "inner_daddr");
+		fs_add_null(fs, "icmp_type");
+		fs_add_null(fs, "icmp_code");
+
+
+		if (tcp->th_flags & TH_RST) { // RST packet
+			fs_add_string(fs, "classification", (char *)"rst", 0);
+			fs_add_bool(fs, "success", 0);
+		}
+		if (tcp->th_flags & TH_SYNACK){// SYNACK packet
+			fs_add_string(fs, "classification", (char *)"synack", 0);
+			fs_add_bool(fs, "success", 1);
+		}
+	}
+	//zou:add icmp type
+	else if (ip_hdr->ip_p == IPPROTO_ICMP) {
+
+		struct icmp *icmp = (struct icmp*) ((char *) ip_hdr + 4*ip_hdr->ip_hl);
+		struct ip *ip_inner = (struct ip*) ((char *) icmp+8);
+		struct tcphdr *inner_tcp = (struct tcphdr*)((char *) ip_inner + 4*ip_inner->ip_hl);
+		char *dipstr;
+
+		fs_add_null(fs, "sport");
+		fs_add_null(fs, "dport");
+		// Get inner dest ip
+		//struct in_addr inner_dst_ip = ip_inner->ip_dst;
+		dipstr = make_ip_str(ip_inner->ip_dst.s_addr);
+		fs_add_string(fs, "inner_daddr", dipstr, 1);
+		fs_add_uint64(fs, "icmp_type", icmp->icmp_type);
+		fs_add_uint64(fs, "icmp_code", icmp->icmp_code);
+		//These are TCP specific fields and adding null for icmp
+		fs_add_null(fs, "seqnum");
+		fs_add_null(fs, "acknum");
+		fs_add_null(fs, "window");
+
+		switch (icmp->icmp_type) {
+			case ICMP_UNREACH:
+				fs_add_string(fs, "classification", (char*) "unreach", 0);
+				fs_add_uint64(fs, "success", 0);
+				break;
+			case ICMP_TIMXCEED:
+				fs_add_string(fs, "classification", (char*) "timxceed", 0);
+				fs_add_uint64(fs, "success", 0);
+				break;
+			case ICMP_REDIRECT:
+				fs_add_string(fs, "classification", (char*) "redirect", 0);
+				fs_add_uint64(fs, "success", 0);
+				break;
+			case ICMP_SOURCEQUENCH:
+				fs_add_string(fs, "classification", (char*) "sourcequench", 0);
+				fs_add_uint64(fs, "success", 0);
+				break;
+
+			default:
+				fs_add_string(fs, "classification", (char*) "other", 0);
+				fs_add_uint64(fs, "success", 0);
+				break;
+		}
+	}
+
+	/*
+	else { // SYNACK packet
 		fs_add_string(fs, "classification", (char *)"synack", 0);
 		fs_add_bool(fs, "success", 1);
 	}
+	 */
 }
 
 static fielddef_t fields[] = {
     {.name = "sport", .type = "int", .desc = "TCP source port"},
     {.name = "dport", .type = "int", .desc = "TCP destination port"},
-    {.name = "seqnum", .type = "int", .desc = "TCP sequence number"},
+
+    //zou:add inner daddr and then have an additional field imcp responder for real daddr of the icmp packet.
+	{.name = "inner_daddr", .type = "string", .desc = "Dest IP of TCP packet within ICMP message"},
+	{.name = "type", .type = "int", .desc = "icmp message type"},
+	{.name = "code", .type = "int", .desc = "icmp message sub type code"},
+
+	{.name = "seqnum", .type = "int", .desc = "TCP sequence number"},
     {.name = "acknum", .type = "int", .desc = "TCP acknowledgement number"},
     {.name = "window", .type = "int", .desc = "TCP window"},
     {.name = "classification",

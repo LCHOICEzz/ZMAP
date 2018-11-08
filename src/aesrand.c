@@ -43,7 +43,7 @@ static aesrand_t *_aesrand_init(uint8_t *key)
 
 aesrand_t *aesrand_init_from_seed(uint64_t seed)
 {
-	uint8_t key[AES_KEY_BYTES];
+	uint8_t key[AES_KEY_BYTES];//128bit key
 	memset(key, 0, AES_KEY_BYTES);
 	for (uint8_t i = 0; i < sizeof(seed); ++i) {
 		key[i] = (uint8_t)((seed >> 8 * i) & 0xFF);

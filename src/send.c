@@ -367,10 +367,14 @@ int send_run(sock_t st, shard_t *s)
 			    s->thread_id, s->state.max_targets);
 			break;
 		}
+
+		//max_runtime
 		if (zconf.max_runtime &&
 		    zconf.max_runtime <= now() - zsend.start) {
 			break;
 		}
+
+
 		if (current_ip == ZMAP_SHARD_DONE) {
 			log_debug("send",
 				  "send thread %hhu finished, shard depleted",
